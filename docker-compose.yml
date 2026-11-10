@@ -1,0 +1,16 @@
+# Только база данных. API и воркер добавятся на этапе 6.
+# Запуск: docker compose up -d db ; схема создаётся при первом старте из db/schema_pg.sql
+# (НЕ проверено в среде разработки: там нет Docker и PostgreSQL).
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: edurisk
+      POSTGRES_PASSWORD: change-me-locally
+      POSTGRES_DB: edurisk
+    ports: ["5432:5432"]
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./db/schema_pg.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
+volumes:
+  pgdata:
