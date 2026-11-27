@@ -158,7 +158,8 @@ def make_app(svc: RiskService):
                 return msg("401 Unauthorized", "Ссылка входа недействительна или устарела.")
             first = "/audit" if who[1] == "admin" else (f"/courses/{svc.allowed_courses(who[0])[0]}" if svc.allowed_courses(who[0]) else "/courses/0")
             return "302 Found", [("Location", first), ("Content-Type", "text/plain"),
-                                 ("Set-Cookie", f"token={t}; Path=/; HttpOnly; SameSite=Strict")], b""
+                                 ("Set-Cookie", f"token={t}; Path=/; HttpOnly; SameSite=Strict"),
+                                 ("Cache-Control", "no-store"), ("Referrer-Policy", "no-referrer")], b""
         tok = token_of(environ)
         who = read_token(tok, svc.secret)
         if who is None:
@@ -187,9 +188,12 @@ def make_app(svc: RiskService):
                 top = int(q["top"][0]) if "top" in q else None
             except ValueError:
                 return msg("400 Bad Request", "top должен быть числом.")
+            if top is not None and top < 0:
+                return msg("400 Bad Request", "top должен быть неотрицательным.")
             df = svc.risk_list(course, top)
             if name == "api_risk":
-                return "200 OK", [("Content-Type", "application/json; charset=utf-8")], json.dumps(
+                return "200 OK", [("Content-Type", "application/json; charset=utf-8"),
+                    ("Cache-Control", "no-store"), ("X-Content-Type-Options", "nosniff")], json.dumps(
                     df.round(4).to_dict("records"), ensure_ascii=False).encode()
             return render("course", title=svc.course_name(course), course=course, rows=df.itertuples())
         pseudo = m.group(2)
@@ -209,6 +213,8 @@ def make_app(svc: RiskService):
             n = int(environ.get("CONTENT_LENGTH") or 0)
         except ValueError:
             n = 0
+        if n < 0:
+            return msg("400 Bad Request", "Некорректная длина формы.")
         form = parse_qs(environ["wsgi.input"].read(min(n, 4096)).decode("utf-8", "replace"))
         if not hmac.compare_digest(form.get("csrf", [""])[0], csrf_of(tok, svc.secret)):
             return msg("403 Forbidden", "Неверный токен формы.")

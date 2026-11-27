@@ -49,6 +49,15 @@ class ServiceAndAppTests(unittest.TestCase):
         data = self.app(env, lambda st, hd: out.update(status=st, headers=dict(hd)))
         return out["status"], out["headers"], b"".join(data).decode("utf-8")
 
+    def test_risk_api_response_is_not_cacheable(self):
+        status, headers, _ = self.call("GET", "/api/courses/0/risk.json", self.tok["m1"], query="top=1")
+        self.assertEqual(status, "200 OK")
+        self.assertEqual(headers["Cache-Control"], "no-store")
+
+    def test_negative_risk_limit_is_rejected(self):
+        status, _, _ = self.call("GET", "/api/courses/0/risk.json", self.tok["m1"], query="top=-1")
+        self.assertEqual(status, "400 Bad Request")
+
     # --- сервис
     def test_risk_list_sorted_and_priority_formula(self):
         df = self.svc.risk_list(0)
